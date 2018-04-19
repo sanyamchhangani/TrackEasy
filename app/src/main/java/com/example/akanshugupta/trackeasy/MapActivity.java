@@ -28,11 +28,12 @@ public class MapActivity extends AppCompatActivity implements BottomSectionFragm
 
     MyReceiver myReceiver;
     double centroid[] = {0.0,0.0};
+    Intent intent;
 
     /*private MyService myService;
     private boolean bound = false;*/
 
-    private static final String TAG = "com.example.akanshugupta.trackapp";
+    private static final String TAG = "check";
     private BluetoothAdapter mBluetoothAdapter;
     private static final int REQUEST_ENABLE_BT = 1;
     private static final int PERMISSION_REQUEST_COARSE_LOCATION = 456;
@@ -40,7 +41,7 @@ public class MapActivity extends AppCompatActivity implements BottomSectionFragm
 
     public void setmap(String map){
         TopSectionFragment topFragment = (TopSectionFragment) getFragmentManager().findFragmentById(R.id.fragment2);
-        topFragment.setm(map);
+        topFragment.setm(map,this);
     }
     public void showmap(String x,String y){
         TopSectionFragment topFragment = (TopSectionFragment) getFragmentManager().findFragmentById(R.id.fragment2);
@@ -57,10 +58,14 @@ public class MapActivity extends AppCompatActivity implements BottomSectionFragm
         return centroid[1];
     }
 
+
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_map);
+
+        Log.i(TAG,"MapActivity started");
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             requestPermissions(new String[]{Manifest.permission.ACCESS_COARSE_LOCATION}, PERMISSION_REQUEST_COARSE_LOCATION);
         }
@@ -111,8 +116,9 @@ public class MapActivity extends AppCompatActivity implements BottomSectionFragm
                             startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
                         }
                     }
+                    Log.i(TAG,"service started");
 
-                    Intent intent = new Intent(this,MyService.class);
+                    intent = new Intent(this,MyService.class);
                     startService(intent);
 
                     /*Intent intent = new Intent(this, MyService.class);
@@ -167,4 +173,9 @@ public class MapActivity extends AppCompatActivity implements BottomSectionFragm
         super.onActivityResult(requestCode, resultCode, data);
     }
 
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        stopService(intent);
+    }
 }

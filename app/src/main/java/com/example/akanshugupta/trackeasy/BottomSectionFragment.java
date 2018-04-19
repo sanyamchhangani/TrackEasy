@@ -56,13 +56,14 @@ public class BottomSectionFragment extends Fragment {
         return Double.valueOf(Y_init.getText().toString());
     }
 
-    static BottomSectionListener activityCommander;
+    public static BottomSectionListener activityCommander;
 
     public interface BottomSectionListener{
         void showmap(String x,String y);
         Double initX();
         Double initY();
     }
+
 
     @Override
     public void onAttach(Activity activity) {

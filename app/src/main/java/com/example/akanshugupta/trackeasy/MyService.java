@@ -1,11 +1,16 @@
-package com.example.akanshugupta.trackeasy;
+package com.example.akanshugupta.trackapp;
 
 import android.app.Activity;
 import android.app.Service;
 import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothClass;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothManager;
 import android.bluetooth.le.BluetoothLeScanner;
+import android.bluetooth.le.ScanCallback;
+import android.bluetooth.le.ScanFilter;
+import android.bluetooth.le.ScanResult;
+import android.bluetooth.le.ScanSettings;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -26,6 +31,9 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Stack;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -35,12 +43,14 @@ import org.apache.commons.math3.fitting.leastsquares.LevenbergMarquardtOptimizer
 
 public class MyService extends Service {
 
-   /* public interface ServiceCallbacks {
-         void showmap(String x,String y);
-    }*/
-
-
     long startTime;
+    private BluetoothLeScanner mBluetoothleScanner;
+    private static final String copey = "74:DA:EA:AF:EB:B2";
+    private static final String dopey = "74:DA:EA:B3:B0:42";
+    private static final String popey = "04:A3:16:07:56:81";
+    private static final int[][] beacon_position = {{13,23},{26,23},{20,31}};
+    Stack<Integer>[] rssi_list = new Stack[3];
+    private final HashMap<String, ArrayList<Integer>> mac_address = new HashMap<String, ArrayList<Integer>>();
     private LeDeviceListAdapter mLeDeviceListAdapter;
     private BluetoothAdapter mBluetoothAdapter;
     private boolean mScanning;
@@ -48,46 +58,46 @@ public class MyService extends Service {
     public static int[] RSSI;
     public static int i;
     private static final String TAG = "com.example.akanshugupta.trackapp";
+    private static final String TAG1 = "check";
     final static String MY_ACTION = "MY_ACTION";
-    //private LinkedList<Device> deviceList;
-
-    //private static final int REQUEST_ENABLE_BT = 1;
-    // Stops scanning after 10 seconds.
-    private static final long SCAN_PERIOD = 10000;
-
-   /* private final IBinder binder = new LocalBinder();
-    // Registered callbacks
-    private ServiceCallbacks serviceCallbacks;
-
-
-    // Class used for the client Binder.
-    public class LocalBinder extends Binder {
-        MyService getService() {
-            // Return this instance of MyService so clients can call public methods
-            return MyService.this;
-        }
-    }
-
-    @Override
-    public IBinder onBind(Intent intent) {
-        return binder;
-    }
-
-    public void setCallbacks(ServiceCallbacks callbacks) {
-        serviceCallbacks = callbacks;
-    }*/
-
-
+    public ArrayList filters;
+    public ScanSettings settings;
     @Override
     public void onCreate() {
         super.onCreate();
+        settings = new ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY).build();
+        filters = new ArrayList<>();
+        String[] filterlist = {
+                copey,
+                dopey,
+                popey//... some 20 more addresses
+        };
+        for (int i=0; i< filterlist.length ; i++) {
+            ScanFilter filter = new ScanFilter.Builder().setDeviceAddress(filterlist[i]).build();
+            filters.add(filter);
+            //Log.v("Filter: "," "+ filters.get(i).getDeviceAddress());
+        }
         mHandler = new Handler();
+        ArrayList<Integer>[] position = new ArrayList[3];
+        for(int i=0;i<3;i++){
+            rssi_list[i] = new Stack<Integer>();
+            position[i] = new ArrayList<Integer>();
+            for(int j=0;j<2;j++){
+                position[i].add(beacon_position[i][j]);
+            }
+        }
 
+        mac_address.put(copey,position[0]);
+        mac_address.put(dopey,position[1]);
+        mac_address.put(popey,position[2]);
         startTime = System.currentTimeMillis();
+
         final BluetoothManager bluetoothManager =
                 (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
         mBluetoothAdapter = bluetoothManager.getAdapter();
         mLeDeviceListAdapter = new LeDeviceListAdapter();
+        mBluetoothleScanner = mBluetoothAdapter.getBluetoothLeScanner();
+
     }
 
     @Override
@@ -95,35 +105,46 @@ public class MyService extends Service {
         Runnable r = new Runnable() {
             @Override
             public void run() {
-                mBluetoothAdapter.startLeScan(mLeScanCallback);
-                Log.i(TAG,mLeDeviceListAdapter.mLeDevices.toString());
+                mBluetoothleScanner.startScan(filters, settings, mScanCallback);
+                //mBluetoothAdapter.startLeScan(mLeScanCallback);
                 //scanLeDevice(true);
-
-
                 Timer t = new Timer();
                 //Set the schedule function and rate
                 t.scheduleAtFixedRate(new TimerTask() {
 
                                           @Override
                                           public void run() {
+                                              Log.i(TAG1,mLeDeviceListAdapter.mLeDevices.toString());
                                               //Called each time when 1000 milliseconds (1 second) (the period parameter)
-
                                               int i = 0;
-                                              double[][] positions = new double[][]{{6,25}, {13.0, 25.0}, {9, 20}};
+                                              double[][] positions = {{13,23},{26,23},{20,31}};
                                               double[] distances = {0.0,0.0,0.0};
-                                              if (mLeDeviceListAdapter.RSSI.size()>=3) {
-                                                  for (i = 0; i < 3; i++) {
-                                                      distances[i] = -0.367 * mLeDeviceListAdapter.RSSI.get(i) - 21.39;
+
+                                              Log.i(TAG1, " inside check" + mLeDeviceListAdapter.mLeDevices.toString());
+                                              if (mLeDeviceListAdapter.RSSI.size() == 3) {
+                                                  for(int k=0;k<3;k++){
+                                                      for(int j=0;j<2;j++) {
+                                                          positions[k][j] = mac_address.get(mLeDeviceListAdapter.getDevice(k).getAddress()).get(j);
+                                                      }
                                                   }
+                                                  for (i = 0; i < 3; i++) {
+                                                      int r = (rssi_list[i].pop()+rssi_list[i].pop()+rssi_list[i].pop()+rssi_list[i].pop())/4;
+                                                      rssi_list[i].clear();
+                                                      distances[i] = -0.367 * r - 19.39;
+                                                      Log.i(TAG1," "+r);
+                                                  }
+                                              }
+
+                                              else{
+                                                  Log.i(TAG , mLeDeviceListAdapter.toString());
+                                                  Log.i(TAG1," three beacons are not available");
                                               }
 
                                               NonLinearLeastSquaresSolver solver = new NonLinearLeastSquaresSolver(new TrilaterationFunction(positions, distances), new LevenbergMarquardtOptimizer());
                                               LeastSquaresOptimizer.Optimum optimum = solver.solve();
                                               // the answer
                                               double[] centroid = optimum.getPoint().toArray();
-                                              Log.i(TAG," "+centroid[0]+" "+centroid[1]);
-
-
+                                              Log.i(TAG1," "+centroid[0]+" "+centroid[1]);
                                               Intent intent = new Intent();
                                               intent.setAction(MY_ACTION);
                                               Bundle bundle = new Bundle();
@@ -131,13 +152,20 @@ public class MyService extends Service {
                                               intent.putExtras(bundle);
                                               sendBroadcast(intent);
                                               Log.i(TAG," "+System.currentTimeMillis());
+                                              //mLeDeviceListAdapter.clear();
+                                              mLeDeviceListAdapter = new LeDeviceListAdapter();
+                                              for(int t=0;t<3;t++){
+                                                  rssi_list[t] = new Stack<Integer>();
+                                               //   position[i] = new ArrayList<Integer>();
+                                              }
                                           }
+
 
                                       },
                                     //Set how long before to start calling the TimerTask (in milliseconds)
                         0,
                             //Set the amount of time between each execution (in milliseconds)
-                        5000);
+                        7000);
 
             }
         };
@@ -146,34 +174,14 @@ public class MyService extends Service {
         return START_NOT_STICKY;
     }
 
-    public void scan(){
 
-    }
 
     public void onDestroy(){
         Log.i(TAG,"destroy method called");
+        mBluetoothleScanner.stopScan(mScanCallback);
+
     }
 
-    private void scanLeDevice(final boolean enable) {
-        if (enable) {
-            // Stops scanning after a pre-defined scan period.
-            mHandler.postDelayed(new Runnable() {
-                @Override
-                public void run() {
-                    mScanning = false;
-                    mBluetoothAdapter.stopLeScan(mLeScanCallback);
-                    //invalidateOptionsMenu();
-                }
-            }, SCAN_PERIOD);
-
-            mScanning = true;
-            mBluetoothAdapter.startLeScan(mLeScanCallback);
-        } else {
-            mScanning = false;
-            mBluetoothAdapter.stopLeScan(mLeScanCallback);
-        }
-        //invalidateOptionsMenu();
-    }
 
     private class LeDeviceListAdapter extends BaseAdapter {
         private ArrayList<BluetoothDevice> mLeDevices;
@@ -193,6 +201,10 @@ public class MyService extends Service {
                 RSSI.add(rssi);
             }
         }
+        public int getPosition(BluetoothDevice device){
+            return mLeDevices.indexOf(device);
+
+        }
 
         public BluetoothDevice getDevice(int position) {
             return mLeDevices.get(position);
@@ -200,6 +212,7 @@ public class MyService extends Service {
 
         public void clear() {
             mLeDevices.clear();
+            RSSI.clear();
         }
 
         @Override
@@ -224,17 +237,33 @@ public class MyService extends Service {
     }
 
 
-    private BluetoothAdapter.LeScanCallback mLeScanCallback =
-            new BluetoothAdapter.LeScanCallback() {
-
+    private ScanCallback mScanCallback =
+            new ScanCallback() {
                 @Override
-                public void onLeScan(final BluetoothDevice device, final int rssi, byte[] scanRecord) {
-                    new MapActivity().runOnUiThread(new Runnable() {
+                public void onScanResult(final int callbacktype, final ScanResult result) {
+                    new MainActivity().runOnUiThread(new Runnable()  {
                         @Override
                         public void run() {
-                            mLeDeviceListAdapter.addDevice(device, rssi);
-                            mLeDeviceListAdapter.notifyDataSetChanged();
-                           // Log.i(TAG, mLeDeviceListAdapter.mLeDevices.toString());
+                            BluetoothDevice device = result.getDevice();
+                            int rssi = result.getRssi();
+                            //if(mac_address.containsKey(device.getAddress())) {
+                                if(!mLeDeviceListAdapter.mLeDevices.contains(device)) {
+                                    mLeDeviceListAdapter.addDevice(device, rssi);
+                                    mLeDeviceListAdapter.notifyDataSetChanged();
+                                    int p = mLeDeviceListAdapter.getPosition(device);
+                                    Log.i(TAG1, mLeDeviceListAdapter.mLeDevices.toString());
+                                    if(p<3) {
+                                        Log.i(TAG1, "device " + device.getAddress() + "  rssi  " + rssi);
+                                        rssi_list[p].push(rssi);
+                                    }
+                                }
+                                else{
+                                    int p = mLeDeviceListAdapter.getPosition(device);
+                                    if(p<3) {
+                                        rssi_list[p].push(rssi);
+                                    }
+                                }
+                            //}
 
                         }
                     });
@@ -246,4 +275,5 @@ public class MyService extends Service {
     public IBinder onBind(Intent intent) {
         return null;
     }
+
 }

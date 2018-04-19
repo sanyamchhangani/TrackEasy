@@ -8,8 +8,6 @@
         android:id="@+id/SitImage"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_alignParentStart="true"
-        android:layout_alignParentTop="true"
-        android:src="@drawable/default_image"
-        app:srcCompat="@drawable/default_image" />
+        android:contentDescription="@string/todo"
+        app:srcCompat="@drawable/sit_ground" />
 </RelativeLayout>

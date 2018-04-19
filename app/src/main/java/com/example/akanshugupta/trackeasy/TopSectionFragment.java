@@ -35,8 +35,8 @@ public class TopSectionFragment extends Fragment{
         return context.getResources().getIdentifier(name, resourceType, context.getPackageName());
     }
 
-    public void setm(String map){
-        iconId = getResourceId(getContext(), map, "drawable");
+    public void setm(String map,Context context){
+        iconId = getResourceId(context, map, "drawable");
         Log.i(TAG," "+map);
         myImageView.setImageResource(iconId);
     }
@@ -49,16 +49,6 @@ public class TopSectionFragment extends Fragment{
         x = x*w/36;
         y = y*h/31;
 
-        /*DrawDot mMap= new DrawDot(this,2,2);
-        mMap=(DrawDot)myImageView;
-        Canvas tempCanvas = new Canvas();
-        mMap.onDraw(tempCanvas);*/
-        /*int width = (int) getResources().getDimension("380dp")
-        float w = myImageView.getWidth();
-        Log.d(TAG, "onCreate width : "+w);
-        int width = (int) getResources().getDimension()
-        float h = myImageView.getHeight();
-        Log.d(TAG, "onCreate height: "+ h);*/
         Bitmap myBitmap = Bitmap.createBitmap(myImageView.getWidth(), myImageView.getHeight(), Bitmap.Config.ARGB_8888);
         Paint myPaint = new Paint();
         //int color = ContextCompat.getColor(thiscontext, R.color.black);
@@ -78,6 +68,6 @@ public class TopSectionFragment extends Fragment{
 
         //Attach the canvas to the ImageView
         myImageView.setImageDrawable(new BitmapDrawable(getResources(), myBitmap));
-        myImageView.setImageResource(iconId);
+        //myImageView.setImageResource(iconId);
     }
 }
